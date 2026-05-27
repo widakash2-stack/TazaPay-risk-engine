@@ -2,9 +2,12 @@ services:
   - type: web
     name: tazapay-risk-engine
     env: python
+    region: singapore
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn api:app --workers 1 --timeout 120
+    startCommand: gunicorn api:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT
     envVars:
       - key: ANTHROPIC_API_KEY
-        sync: false   # set manually in Render dashboard
+        sync: false
     rootDir: backend
+    pythonVersion: "3.11.0"
