@@ -1,0 +1,11 @@
+flask==3.0.3
+flask-cors==4.0.1
+lightgbm==4.3.0
+scikit-learn==1.4.2
+pandas==2.2.2
+numpy==1.26.4
+shap==0.45.1
+joblib==1.4.2
+networkx==3.3
+anthropic==0.28.0
+gunicorn==22.0.0

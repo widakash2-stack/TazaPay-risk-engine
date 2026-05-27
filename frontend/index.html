@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tazapay Risk Intelligence Engine</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: Arial, sans-serif; background:#0a0a0a; color:#fff; min-height:100vh; }
+
+/* ── Top bar ── */
+.topbar { background:#111; border-bottom:1px solid #1e1e1e; padding:14px 28px; display:flex; align-items:center; justify-content:space-between; }
+.topbar h1 { font-size:16px; font-weight:700; color:#ff4444; letter-spacing:0.5px; }
+.topbar .sub { font-size:11px; color:#555; margin-top:2px; }
+.topbar .status { font-size:11px; color:#44ff44; display:flex; align-items:center; gap:5px; }
+.status-dot { width:7px; height:7px; background:#44ff44; border-radius:50%; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ── Policy bar ── */
+.policy-bar { display:flex; align-items:center; gap:16px; padding:10px 28px; background:#0d0d0d; border-bottom:1px solid #1a1a1a; flex-wrap:wrap; }
+.policy-btn { padding:5px 14px; border-radius:6px; border:1px solid #333; background:none; color:#666; font-size:11px; cursor:pointer; font-family:Arial; transition:all 0.15s; }
+.policy-btn:hover { border-color:#555; color:#aaa; }
+.policy-btn.active { background:#1a1a1a; border-color:#555; color:#fff; font-weight:bold; }
+.policy-info { font-size:11px; color:#555; }
+
+/* ── Metrics row ── */
+.metrics { display:flex; gap:12px; padding:18px 28px; flex-wrap:wrap; }
+.metric { background:#111; border:1px solid #1e3a1e; border-radius:10px; padding:12px 20px; text-align:center; flex:1; min-width:100px; }
+.metric p { font-size:10px; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
+.metric h3 { font-size:20px; color:#44ff44; font-weight:700; }
+.metric.warn h3 { color:#ffaa00; }
+.metric.danger h3 { color:#ff4444; }
+
+/* ── Stats ── */
+.stats { display:flex; gap:12px; padding:0 28px 18px; flex-wrap:wrap; }
+.stat-card { background:#1a1a1a; border:1px solid #222; border-radius:10px; padding:16px 22px; text-align:center; flex:1; min-width:100px; }
+.stat-card p { font-size:11px; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.stat-card h2 { font-size:28px; font-weight:700; }
+
+/* ── Drift + retrain bar ── */
+.status-bars { padding:0 28px 18px; display:flex; gap:12px; flex-wrap:wrap; }
+.drift-card { background:#111; border:1px solid #2a2a2a; border-radius:8px; padding:12px 18px; display:flex; align-items:center; gap:16px; flex:1; min-width:240px; flex-wrap:wrap; }
+.drift-label { font-size:11px; color:#555; white-space:nowrap; }
+.drift-val { font-size:13px; font-weight:bold; }
+.retrain-wrap { background:#111; border:1px solid #2a2a2a; border-radius:8px; padding:12px 18px; flex:2; min-width:280px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.retrain-bg { flex:1; background:#222; border-radius:4px; height:10px; min-width:120px; overflow:hidden; }
+.retrain-fill { height:10px; border-radius:4px; transition:width 0.5s; }
+
+/* ── Module badges ── */
+.module-badges { padding:0 28px 16px; display:flex; gap:8px; flex-wrap:wrap; }
+.badge { font-size:10px; font-weight:700; padding:3px 10px; border-radius:999px; }
+.badge-a1 { background:#1a1a3a; color:#8888ff; border:1px solid #3333aa; }
+.badge-a2 { background:#1a2a1a; color:#88ff88; border:1px solid #338833; }
+.badge-a3 { background:#2a1a1a; color:#ff8888; border:1px solid #aa3333; }
+.badge-a4 { background:#2a2a1a; color:#ffff88; border:1px solid #aaaa33; }
+.badge-a5 { background:#1a2a2a; color:#88ffff; border:1px solid #33aaaa; }
+.badge-a6 { background:#2a1a2a; color:#ff88ff; border:1px solid #aa33aa; }
+.badge-a7 { background:#2a1a1a; color:#ff8844; border:1px solid #aa4422; }
+
+/* ── Table ── */
+.table-wrap { padding:0 28px 28px; overflow-x:auto; }
+table { width:100%; border-collapse:collapse; background:#111; border-radius:10px; overflow:hidden; font-size:12px; }
+th { background:#1a1a1a; padding:10px 12px; text-align:left; color:#666; font-size:10px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; }
+td { padding:10px 12px; border-bottom:1px solid #181818; vertical-align:middle; }
+tr:hover td { background:#161616; }
+tr:last-child td { border-bottom:none; }
+.block { color:#ff4444; font-weight:bold; }
+.review { color:#ffaa00; font-weight:bold; }
+.allow { color:#44ff44; font-weight:bold; }
+.score-bar-bg { background:#222; border-radius:3px; height:5px; width:60px; display:inline-block; vertical-align:middle; margin-right:5px; }
+.score-bar { height:5px; border-radius:3px; }
+.badge-tag { font-size:10px; font-weight:bold; padding:2px 7px; border-radius:3px; }
+.tag-high { background:#2a0000; color:#ff4444; border:1px solid #ff4444; }
+.tag-elevated { background:#2a1a00; color:#ffaa00; border:1px solid #ffaa00; }
+.tag-low { background:#002a00; color:#44ff44; border:1px solid #44ff44; }
+.tag-dash { color:#333; }
+.tr-pending { color:#ffaa00; font-size:10px; }
+.tr-violation { color:#ff4444; font-size:10px; }
+.tr-compliant { color:#44ff44; font-size:10px; }
+.mod-tight { color:#ff4444; font-size:10px; font-weight:bold; }
+.mod-loose { color:#44ff44; font-size:10px; font-weight:bold; }
+.corridor { font-size:11px; color:#888; }
+
+/* ── SAR panel ── */
+.sar-btn { background:none; border:1px solid #1a2a3a; color:#4488cc; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:10px; font-family:Arial; }
+.sar-btn:hover { border-color:#4488cc; color:#88bbff; }
+.sar-row { display:none; }
+.sar-panel { background:#0d1520; border:1px solid #1a2a3a; border-radius:8px; padding:12px 16px; font-size:12px; line-height:1.7; color:#cce4ff; white-space:pre-wrap; }
+
+/* ── Feedback modal ── */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:200; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:26px; width:400px; max-width:94vw; }
+.modal-box h3 { font-size:15px; margin-bottom:4px; }
+.modal-box .txn-sub { color:#555; font-size:12px; margin-bottom:16px; }
+.modal-box label { color:#888; font-size:11px; display:block; margin:12px 0 4px; text-transform:uppercase; letter-spacing:1px; }
+.modal-box select, .modal-box textarea { width:100%; background:#111; border:1px solid #333; color:#fff; border-radius:6px; padding:8px 10px; font-size:13px; font-family:Arial; }
+.modal-box textarea { height:72px; resize:vertical; }
+.modal-btns { display:flex; gap:10px; margin-top:18px; justify-content:flex-end; }
+.btn-submit { background:#ff4444; color:#fff; border:none; padding:8px 20px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold; }
+.btn-cancel { background:#2a2a2a; color:#aaa; border:none; padding:8px 20px; border-radius:6px; cursor:pointer; font-size:13px; }
+.fb-btn { background:none; border:1px solid #2a2a2a; color:#555; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:10px; font-family:Arial; }
+.fb-btn:hover { border-color:#555; color:#aaa; }
+.fb-btn.done { border-color:#44ff44; color:#44ff44; }
+
+/* ── Integrity modal ── */
+.integrity-toast { position:fixed; bottom:24px; right:24px; background:#1a1a1a; border:1px solid #333; border-radius:10px; padding:14px 18px; font-size:12px; max-width:340px; z-index:300; display:none; }
+.integrity-toast.show { display:block; }
+.integrity-toast.approved { border-color:#44ff44; }
+.integrity-toast.blocked  { border-color:#ff4444; }
+.integrity-toast.consensus { border-color:#ffaa00; }
+
+/* ── Loading ── */
+.loading { text-align:center; padding:60px; color:#444; }
+.loader { display:inline-block; width:32px; height:32px; border:3px solid #333; border-top-color:#ff4444; border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:12px; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+.error-msg { background:#1a0000; border:1px solid #440000; border-radius:8px; padding:14px 18px; color:#ff6666; font-size:12px; margin:16px 28px; }
+</style>
+</head>
+<body>
+
+<!-- Config: set your Render backend URL here -->
+<script>
+  const API_BASE = window.location.hostname === 'localhost'
+    ? 'http://localhost:5000'
+    : 'https://tazapay-risk-engine.onrender.com';  // ← UPDATE THIS after Render deploy
+</script>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div>
+    <h1>🔴 TAZAPAY RISK INTELLIGENCE ENGINE</h1>
+    <div class="sub">LightGBM + Jurisdiction + Travel Rule + SAR + Wallet + Chain + Integrity + Escrow</div>
+  </div>
+  <div class="status"><div class="status-dot"></div><span id="api-status">Connecting...</span></div>
+</div>
+
+<!-- Policy bar -->
+<div class="policy-bar">
+  <span class="policy-info">Merchant Policy:</span>
+  <button class="policy-btn active" id="btn-ecommerce" onclick="setMerchant('ecommerce')">ecommerce</button>
+  <button class="policy-btn" id="btn-gaming"    onclick="setMerchant('gaming')">gaming</button>
+  <button class="policy-btn" id="btn-b2b"       onclick="setMerchant('b2b')">b2b</button>
+  <span class="policy-info" id="policy-info">block≥$100 | review≥$20</span>
+</div>
+
+<!-- Module badges -->
+<div class="module-badges">
+  <span class="badge badge-a1">A1 Jurisdiction Risk</span>
+  <span class="badge badge-a2">A2 Travel Rule</span>
+  <span class="badge badge-a3">A3 SAR Narrative</span>
+  <span class="badge badge-a4">A4 Wallet Risk</span>
+  <span class="badge badge-a5">A5 Chain Scoring</span>
+  <span class="badge badge-a6">A6 Integrity Check</span>
+  <span class="badge badge-a7">A7 Escrow Risk</span>
+</div>
+
+<!-- Main content -->
+<div id="main-content">
+  <div class="loading">
+    <div class="loader"></div>
+    <div>Loading engine...</div>
+  </div>
+</div>
+
+<!-- Analyst feedback modal -->
+<div id="feedback-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h3>Analyst Feedback</h3>
+    <p class="txn-sub">Transaction: TXN-<span id="modal-txn-label"></span></p>
+    <input type="hidden" id="modal-txn-id">
+    <input type="hidden" id="modal-card-id">
+    <label>Decision</label>
+    <select id="modal-decision">
+      <option value="CONFIRM_FRAUD">CONFIRM_FRAUD</option>
+      <option value="FALSE_POSITIVE">FALSE_POSITIVE</option>
+      <option value="CONFIRM_LEGIT">CONFIRM_LEGIT</option>
+    </select>
+    <label>Notes (optional)</label>
+    <textarea id="modal-notes" placeholder="Add analyst notes..."></textarea>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeFeedback()">Cancel</button>
+      <button class="btn-submit" onclick="submitFeedback()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Integrity toast -->
+<div id="integrity-toast" class="integrity-toast"></div>
+
+<script>
+let currentMerchant = 'ecommerce';
+let dashboardData   = null;
+
+// ── API calls ──────────────────────────────────────────────────────────────
+
+async function fetchDashboard(merchant) {
+  const res  = await fetch(`${API_BASE}/api/dashboard?merchant=${merchant}&n=40`);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
+async function fetchSAR(txnId, amount, score, reason, origin, dest, trStatus, decision) {
+  const params = new URLSearchParams({amount, score, reason, origin, dest,
+    tr_status: trStatus, decision});
+  const res = await fetch(`${API_BASE}/api/sar/${txnId}?${params}`);
+  return res.json();
+}
+
+async function postFeedback(txnId, cardId, decision, notes) {
+  const res = await fetch(`${API_BASE}/api/feedback`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      transaction_id:   txnId,
+      card_id:          cardId,
+      analyst_id:       'analyst_demo',
+      analyst_decision: decision,
+      analyst_notes:    notes,
+    }),
+  });
+  return res.json();
+}
+
+// ── Render dashboard ───────────────────────────────────────────────────────
+
+function renderDashboard(data) {
+  dashboardData = data;
+  const { transactions: txns, stats, metrics, drift, retrain_score,
+          travel_rule, integrity, adj_summary, merchant, policy } = data;
+
+  const retrain_color = retrain_score < 30 ? '#44ff44' : retrain_score < 70 ? '#ffaa00' : '#ff4444';
+  const retrain_label = retrain_score < 30 ? 'OK' : retrain_score < 70 ? 'MONITOR' : 'RETRAIN NOW';
+
+  document.getElementById('main-content').innerHTML = `
+
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric"><p>PR-AUC</p><h3>${metrics.pr_auc}</h3></div>
+      <div class="metric"><p>ROC-AUC</p><h3>${metrics.roc_auc}</h3></div>
+      <div class="metric"><p>Precision</p><h3>${metrics.precision}%</h3></div>
+      <div class="metric"><p>Recall</p><h3>${metrics.recall}%</h3></div>
+      <div class="metric ${drift.drift_detected ? 'danger' : ''}">
+        <p>Drift</p>
+        <h3>${drift.drift_detected ? '⚠ DRIFT' : '✓ STABLE'}</h3>
+      </div>
+      <div class="metric"><p>Travel Rule</p><h3 style="color:#4488cc">${travel_rule.total_triggered || 0}</h3></div>
+      <div class="metric"><p>Integrity Blocks</p><h3 style="color:#ff8844">${integrity.blocked || 0}</h3></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card"><p>Total</p><h2>${stats.total}</h2></div>
+      <div class="stat-card"><p>Blocked</p><h2 style="color:#ff4444">${stats.blocked}</h2></div>
+      <div class="stat-card"><p>Review</p><h2 style="color:#ffaa00">${stats.review}</h2></div>
+      <div class="stat-card"><p>Allowed</p><h2 style="color:#44ff44">${stats.allowed}</h2></div>
+      <div class="stat-card"><p>Fraud Caught</p><h2 style="color:#ff4444">${stats.fraud_caught}%</h2></div>
+      <div class="stat-card"><p>Adjusted Cards</p><h2 style="color:#aaa">${adj_summary.total_adjusted || 0}</h2></div>
+    </div>
+
+    <!-- Status bars -->
+    <div class="status-bars">
+      <div class="drift-card">
+        <span class="drift-label">Drift Monitor</span>
+        <span class="drift-val ${drift.drift_detected ? 'danger' : ''}" style="color:${drift.drift_detected?'#ff4444':'#44ff44'}">
+          ${drift.pr_early} → ${drift.pr_mid} → ${drift.pr_late}
+        </span>
+      </div>
+      <div class="retrain-wrap">
+        <span class="drift-label">Retraining Readiness</span>
+        <div class="retrain-bg">
+          <div class="retrain-fill" style="width:${retrain_score}%;background:${retrain_color}"></div>
+        </div>
+        <span style="color:${retrain_color};font-size:13px;font-weight:bold;">
+          ${retrain_score}/100 — ${retrain_label}
+        </span>
+      </div>
+    </div>
+
+    <!-- Analyst intelligence bar -->
+    <div style="margin:0 28px 16px;background:#111;border:1px solid #1a2a1a;border-radius:8px;padding:10px 18px;display:flex;gap:18px;flex-wrap:wrap;font-size:11px;">
+      <span style="color:#666;text-transform:uppercase;letter-spacing:1px;">Analyst Intelligence</span>
+      <span style="color:#aaa">${integrity.total_checks || 0} checks run</span>
+      <span style="color:#4444ff">·</span>
+      <span style="color:#ff4444">↓ ${adj_summary.tightened || 0} tightened</span>
+      <span style="color:#4444ff">·</span>
+      <span style="color:#44ff44">↑ ${adj_summary.loosened || 0} loosened</span>
+      <span style="color:#4444ff">·</span>
+      <span style="color:#ffaa00">⚠ ${integrity.escalated || 0} escalations</span>
+    </div>
+
+    <!-- Transaction table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>TXN</th>
+            <th>Amount</th>
+            <th>Score</th>
+            <th>Jur Loss</th>
+            <th>Final Loss</th>
+            <th>Corridor</th>
+            <th>TR</th>
+            <th>Wallet</th>
+            <th>Chain</th>
+            <th>Escrow</th>
+            <th>Modifier</th>
+            <th>Decision</th>
+            <th>Reason Codes</th>
+            <th>SAR</th>
+            <th>Feedback</th>
+          </tr>
+        </thead>
+        <tbody id="txn-tbody">
+          ${txns.map(renderRow).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderRow(t) {
+  const scoreColor = t.score_raw >= 0.5 ? '#ff4444' : t.score_raw >= 0.2 ? '#ffaa00' : '#44ff44';
+  const scorePct   = Math.round(t.score_raw * 100);
+  const walletTag  = t.wallet_label === 'HIGH' ? `<span class="badge-tag tag-high">HIGH</span>`
+                   : t.wallet_label === 'ELEVATED' ? `<span class="badge-tag tag-elevated">ELEV</span>`
+                   : t.wallet_label === '—' ? `<span class="tag-dash">—</span>`
+                   : `<span class="badge-tag tag-low">LOW</span>`;
+  const chainTag   = t.chain_label === 'HIGH' ? `<span class="badge-tag tag-high">HIGH</span>`
+                   : t.chain_label === 'ELEVATED' ? `<span class="badge-tag tag-elevated">ELEV</span>`
+                   : t.chain_label === '—' ? `<span class="tag-dash">—</span>`
+                   : `<span style="color:#44ff44;font-size:10px;">STD</span>`;
+  const escrowTag  = t.escrow_label === 'BLOCK' ? `<span class="badge-tag tag-high">BLOCK</span>`
+                   : t.escrow_label === 'REVIEW' ? `<span class="badge-tag tag-elevated">REVIEW</span>`
+                   : t.escrow_label === 'HOLD_PENDING_SOF' ? `<span class="badge-tag tag-elevated">HOLD</span>`
+                   : `<span class="tag-dash">—</span>`;
+  const trTag      = t.tr_status === 'PENDING'   ? `<span class="tr-pending">PENDING</span>`
+                   : t.tr_status === 'VIOLATION' ? `<span class="tr-violation">VIOLATION</span>`
+                   : t.tr_status === 'COMPLIANT' ? `<span class="tr-compliant">COMPLIANT</span>`
+                   : `<span class="tag-dash">—</span>`;
+  const modTag     = t.modifier < 0.95 ? `<span class="mod-tight">↓${t.modifier?.toFixed(2)}×</span>`
+                   : t.modifier > 1.05 ? `<span class="mod-loose">↑${t.modifier?.toFixed(2)}×</span>`
+                   : `<span style="color:#555;font-size:10px;">1.00×</span>`;
+  const reasonShort= (t.reason || 'NORMAL').split(' | ').slice(0,2).join(' | ')
+                   + ((t.reason || '').split(' | ').length > 2 ? ' …' : '');
+
+  const sarBtn = (t.decision === 'BLOCK' || t.decision === 'REVIEW')
+    ? `<button class="sar-btn" onclick="toggleSAR(${t.id}, ${t.amount}, ${scorePct}, '${(t.reason||'').replace(/'/g,"\\'")}', '${t.origin}', '${t.dest}', '${t.tr_status}', '${t.decision}')">SAR</button>`
+    : `<span class="tag-dash">—</span>`;
+
+  return `
+    <tr id="row-${t.id}">
+      <td style="color:#888;font-size:11px">TXN-${t.id}</td>
+      <td>$${t.amount?.toFixed(2)}</td>
+      <td>
+        <span class="score-bar-bg"><span class="score-bar" style="width:${scorePct}%;background:${scoreColor}"></span></span>
+        <span style="color:${scoreColor};font-weight:bold">${scorePct}%</span>
+      </td>
+      <td style="color:#aaa">$${t.adj_loss?.toFixed(2)||'—'}</td>
+      <td style="color:#fff;font-weight:500">$${t.final_loss?.toFixed(2)||'—'}</td>
+      <td class="corridor">${t.origin||'—'}→${t.dest||'—'} <span style="font-size:10px;color:#444">${t.tier_label||''}</span></td>
+      <td>${trTag}</td>
+      <td>${walletTag}</td>
+      <td>${chainTag}</td>
+      <td>${escrowTag}</td>
+      <td>${modTag}</td>
+      <td><span class="${t.cls||'allow'}">${t.decision}</span></td>
+      <td style="font-size:10px;color:#666;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.reason||''}">${reasonShort}</td>
+      <td>${sarBtn}</td>
+      <td><button class="fb-btn" id="fb-${t.id}" onclick="openFeedback(${t.id}, '${t.card_id}')">Review</button></td>
+    </tr>
+    <tr id="sar-row-${t.id}" class="sar-row">
+      <td colspan="15" style="padding:8px 16px 14px">
+        <div id="sar-content-${t.id}" class="sar-panel">Loading SAR...</div>
+      </td>
+    </tr>
+  `;
+}
+
+// ── SAR toggle ─────────────────────────────────────────────────────────────
+
+async function toggleSAR(txnId, amount, score, reason, origin, dest, trStatus, decision) {
+  const row     = document.getElementById(`sar-row-${txnId}`);
+  const content = document.getElementById(`sar-content-${txnId}`);
+  if (row.style.display === 'table-row') {
+    row.style.display = 'none'; return;
+  }
+  row.style.display = 'table-row';
+  content.textContent = 'Generating SAR narrative...';
+  try {
+    const data = await fetchSAR(txnId, amount, score, reason, origin, dest, trStatus, decision);
+    content.textContent = data.narrative || 'Error generating narrative.';
+  } catch(e) {
+    content.textContent = `Error: ${e.message}`;
+  }
+}
+
+// ── Feedback ───────────────────────────────────────────────────────────────
+
+function openFeedback(txnId, cardId) {
+  document.getElementById('modal-txn-id').value    = txnId;
+  document.getElementById('modal-txn-label').textContent = txnId;
+  document.getElementById('modal-card-id').value   = cardId;
+  document.getElementById('modal-notes').value     = '';
+  document.getElementById('feedback-modal').classList.add('open');
+}
+function closeFeedback() {
+  document.getElementById('feedback-modal').classList.remove('open');
+}
+async function submitFeedback() {
+  const txnId    = document.getElementById('modal-txn-id').value;
+  const cardId   = document.getElementById('modal-card-id').value;
+  const decision = document.getElementById('modal-decision').value;
+  const notes    = document.getElementById('modal-notes').value;
+  closeFeedback();
+
+  try {
+    const result = await postFeedback(txnId, cardId, decision, notes);
+    showIntegrityToast(result);
+
+    const btn = document.getElementById(`fb-${txnId}`);
+    if (btn) { btn.textContent = '✓'; btn.classList.add('done'); }
+  } catch(e) {
+    showToast('blocked', `Error: ${e.message}`);
+  }
+}
+function showIntegrityToast(result) {
+  const toast = document.getElementById('integrity-toast');
+  const cls   = result.status === 'approved'  ? 'approved'
+              : result.status === 'blocked'   ? 'blocked'
+              : 'consensus';
+  const icon  = result.status === 'approved' ? '✅' : result.status === 'blocked' ? '🚨' : '⏳';
+  toast.className = `integrity-toast show ${cls}`;
+  toast.innerHTML = `<strong>${icon} Feedback ${result.status.toUpperCase()}</strong><br>
+    <span style="color:#aaa;font-size:11px">${result.integrity_note}</span>
+    ${result.flags?.length ? `<br><span style="color:#ff8844;font-size:10px">${result.flags.join(' | ')}</span>` : ''}`;
+  setTimeout(() => { toast.classList.remove('show'); }, 4000);
+}
+document.getElementById('feedback-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeFeedback();
+});
+
+// ── Merchant switcher ──────────────────────────────────────────────────────
+
+function setMerchant(m) {
+  currentMerchant = m;
+  ['ecommerce','gaming','b2b'].forEach(x => {
+    document.getElementById(`btn-${x}`).classList.toggle('active', x === m);
+  });
+  loadDashboard();
+}
+
+// ── Main load ──────────────────────────────────────────────────────────────
+
+async function loadDashboard() {
+  document.getElementById('main-content').innerHTML =
+    '<div class="loading"><div class="loader"></div><div>Loading transactions...</div></div>';
+  try {
+    const data = await fetchDashboard(currentMerchant);
+    renderDashboard(data);
+    document.getElementById('api-status').textContent = 'Live';
+    const p = data.policy;
+    document.getElementById('policy-info').textContent =
+      `block≥$${p.block_threshold} | review≥$${p.review_threshold} | high-amount≥$${p.high_amount_threshold}`;
+  } catch(e) {
+    document.getElementById('api-status').textContent = 'Offline';
+    document.getElementById('api-status').style.color = '#ff4444';
+    document.getElementById('main-content').innerHTML = `
+      <div class="error-msg">
+        <strong>⚠ Cannot connect to backend API</strong><br><br>
+        Expected: <code>${API_BASE}</code><br><br>
+        If you just deployed to Render, it may be spinning up (takes ~30s on free tier).<br>
+        Refresh in a moment. Or update <code>API_BASE</code> in this file with your Render URL.
+      </div>`;
+  }
+}
+
+// Health check
+fetch(`${API_BASE}/health`)
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById('api-status').textContent = d.model_loaded ? 'Live' : 'Live (demo mode)';
+  })
+  .catch(() => {
+    document.getElementById('api-status').textContent = 'Offline';
+    document.getElementById('api-status').style.color = '#ff4444';
+  });
+
+loadDashboard();
+</script>
+</body>
+</html>

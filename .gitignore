@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.pkl
+*.json
+!render.yaml
+*.csv
+.DS_Store
+venv/
+.venv/
+node_modules/
