@@ -492,7 +492,8 @@ function generateAndScore(n = 40) {
 
   for (let i = 0; i < n; i++) {
     const r        = seededRand(i * 97 + 3);
-    const amount   = parseFloat((r() * 2990 + 10).toFixed(2));
+    // Amount range $200–$8000 — ensures realistic expected losses and Travel Rule triggers
+    const amount   = parseFloat((r() * 7800 + 200).toFixed(2));
     // Score distribution: ~25% high risk (>0.5), ~35% medium (0.15-0.5), ~40% low (<0.15)
     // This produces a realistic 55-65% BLOCK rate matching real cross-border fraud engines
     let rawScore;
@@ -557,9 +558,12 @@ function generateAndScore(n = 40) {
       decision = 'BLOCK';
     } else if (amount > jitter(policy.high) || (isNight === 1 && rawScore > 0.5)) {
       decision = 'BLOCK';
+    } else if (rawScore > 0.65) {
+      // High ML score always blocks regardless of amount
+      decision = 'BLOCK';
     } else if (finalLoss > jitter(effBlock)) {
       decision = 'BLOCK';
-    } else if (finalLoss > jitter(effReview)) {
+    } else if (rawScore > 0.30 || finalLoss > jitter(effReview)) {
       decision = 'REVIEW';
     }
 
