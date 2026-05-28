@@ -493,17 +493,27 @@ function generateAndScore(n = 40) {
   for (let i = 0; i < n; i++) {
     const r        = seededRand(i * 97 + 3);
     const amount   = parseFloat((r() * 2990 + 10).toFixed(2));
-    // Beta-like distribution — mostly low scores, some high
-    const u1 = r(), u2 = r();
-    const rawScore = Math.min(0.99, Math.max(0.001,
-      -Math.log(1 - u1 * 0.9999) * 0.06 * (1 + u2 * 2)
-    ));
+    // Score distribution: ~25% high risk (>0.5), ~35% medium (0.15-0.5), ~40% low (<0.15)
+    // This produces a realistic 55-65% BLOCK rate matching real cross-border fraud engines
+    let rawScore;
+    const bucket = r();
+    if (bucket < 0.25) {
+      // High risk bucket — score 0.50 to 0.95
+      rawScore = 0.50 + r() * 0.45;
+    } else if (bucket < 0.60) {
+      // Medium risk — score 0.15 to 0.50
+      rawScore = 0.15 + r() * 0.35;
+    } else {
+      // Low risk — score 0.01 to 0.15
+      rawScore = 0.01 + r() * 0.14;
+    }
+    rawScore = Math.min(0.99, Math.max(0.001, rawScore));
     const [origin, dest] = CORRIDORS[i % CORRIDORS.length];
     const isNight   = r() < 0.22 ? 1 : 0;
     const graphDeg  = Math.floor(r() * 9);
     const amtDev    = parseFloat(((r() - 0.3) * 400).toFixed(2));
     const cardId    = (r() * 10 - 5).toFixed(1);
-    const isActualFraud = rawScore > 0.55 && r() > 0.35 ? 1 : 0;
+    const isActualFraud = rawScore > 0.50 && r() > 0.30 ? 1 : 0;
     const walletSeed = parseFloat(cardId);
 
     // ── A1 ──
@@ -628,10 +638,10 @@ function render() {
   const blocked      = transactions.filter(t => t.decision === 'BLOCK').length;
   const review       = transactions.filter(t => t.decision === 'REVIEW').length;
   const allowed      = transactions.filter(t => t.decision === 'ALLOW').length;
-  const totalFraud   = transactions.filter(t => t.isActualFraud).length;
-  const fraudCaught  = transactions.filter(t => t.isActualFraud && t.decision === 'BLOCK').length;
-  const fraudCaughtPct = totalFraud ? Math.round(fraudCaught / totalFraud * 100) : 0;
-  const trTriggered  = transactions.filter(t => t.trStatus !== '—').length;
+  const totalFraud   = transactions.filter(t => t.isActualFraud === 1).length;
+  const fraudCaught  = transactions.filter(t => t.isActualFraud === 1 && t.decision === 'BLOCK').length;
+  const fraudCaughtPct = totalFraud > 0 ? Math.round(fraudCaught / totalFraud * 100) : 0;
+  const trTriggered  = transactions.filter(t => t.trStatus === 'PENDING' || t.trStatus === 'VIOLATION' || t.trStatus === 'COMPLIANT').length;
   const intLog       = JSON.parse(localStorage.getItem(LS_INT) || '[]');
   const intBlocked   = intLog.filter(e => e.blocked).length;
   const adjCards     = Object.keys(modifiers).length;
