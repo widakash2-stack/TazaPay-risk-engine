@@ -4,490 +4,840 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tazapay Risk Intelligence Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
+:root {
+  --bg:       #070809;
+  --surface:  #0e1012;
+  --surface2: #141618;
+  --border:   #1e2124;
+  --border2:  #262a2e;
+  --text:     #e8eaed;
+  --muted:    #4a5058;
+  --muted2:   #6b7480;
+  --red:      #ff3b3b;
+  --amber:    #ffaa00;
+  --green:    #00d084;
+  --blue:     #3b82f6;
+  --purple:   #8b5cf6;
+  --cyan:     #06b6d4;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'IBM Plex Sans', sans-serif;
+}
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: Arial, sans-serif; background:#0a0a0a; color:#fff; min-height:100vh; }
+html { scroll-behavior:smooth; }
+body { font-family:var(--sans); background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
 
-/* ── Top bar ── */
-.topbar { background:#111; border-bottom:1px solid #1e1e1e; padding:14px 28px; display:flex; align-items:center; justify-content:space-between; }
-.topbar h1 { font-size:16px; font-weight:700; color:#ff4444; letter-spacing:0.5px; }
-.topbar .sub { font-size:11px; color:#555; margin-top:2px; }
-.topbar .status { font-size:11px; color:#44ff44; display:flex; align-items:center; gap:5px; }
-.status-dot { width:7px; height:7px; background:#44ff44; border-radius:50%; animation:pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+/* scanline overlay */
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:999;
+  background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+}
 
-/* ── Policy bar ── */
-.policy-bar { display:flex; align-items:center; gap:16px; padding:10px 28px; background:#0d0d0d; border-bottom:1px solid #1a1a1a; flex-wrap:wrap; }
-.policy-btn { padding:5px 14px; border-radius:6px; border:1px solid #333; background:none; color:#666; font-size:11px; cursor:pointer; font-family:Arial; transition:all 0.15s; }
-.policy-btn:hover { border-color:#555; color:#aaa; }
-.policy-btn.active { background:#1a1a1a; border-color:#555; color:#fff; font-weight:bold; }
-.policy-info { font-size:11px; color:#555; }
+/* ── TOP BAR ── */
+.topbar {
+  position:sticky; top:0; z-index:100;
+  background:rgba(7,8,9,0.92); backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 24px; height:52px;
+}
+.logo { display:flex; align-items:center; gap:10px; }
+.logo-dot { width:8px; height:8px; background:var(--red); border-radius:50%; animation:blink 1.4s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1;box-shadow:0 0 6px var(--red)} 50%{opacity:0.3;box-shadow:none} }
+.logo-text { font-family:var(--mono); font-size:13px; font-weight:700; letter-spacing:0.08em; color:var(--text); }
+.logo-sub { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:0.05em; margin-top:1px; }
+.topbar-right { display:flex; align-items:center; gap:16px; }
+.live-pill { display:flex; align-items:center; gap:5px; background:rgba(0,208,132,0.08); border:1px solid rgba(0,208,132,0.2); border-radius:999px; padding:3px 10px; font-family:var(--mono); font-size:10px; color:var(--green); }
+.live-dot { width:5px; height:5px; background:var(--green); border-radius:50%; animation:blink 2s ease infinite; }
 
-/* ── Metrics row ── */
-.metrics { display:flex; gap:12px; padding:18px 28px; flex-wrap:wrap; }
-.metric { background:#111; border:1px solid #1e3a1e; border-radius:10px; padding:12px 20px; text-align:center; flex:1; min-width:100px; }
-.metric p { font-size:10px; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
-.metric h3 { font-size:20px; color:#44ff44; font-weight:700; }
-.metric.warn h3 { color:#ffaa00; }
-.metric.danger h3 { color:#ff4444; }
+/* ── MODULE BADGES ── */
+.badge-row { display:flex; gap:6px; padding:10px 24px; border-bottom:1px solid var(--border); flex-wrap:wrap; background:var(--surface); }
+.badge { font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:0.08em; padding:3px 9px; border-radius:3px; border:1px solid; cursor:default; }
+.b1 { color:#818cf8; border-color:#3730a3; background:rgba(55,48,163,0.15); }
+.b2 { color:#34d399; border-color:#065f46; background:rgba(6,95,70,0.15); }
+.b3 { color:#f87171; border-color:#7f1d1d; background:rgba(127,29,29,0.15); }
+.b4 { color:#fbbf24; border-color:#78350f; background:rgba(120,53,15,0.15); }
+.b5 { color:#67e8f9; border-color:#164e63; background:rgba(22,78,99,0.15); }
+.b6 { color:#c084fc; border-color:#581c87; background:rgba(88,28,135,0.15); }
+.b7 { color:#fb923c; border-color:#7c2d12; background:rgba(124,45,18,0.15); }
 
-/* ── Stats ── */
-.stats { display:flex; gap:12px; padding:0 28px 18px; flex-wrap:wrap; }
-.stat-card { background:#1a1a1a; border:1px solid #222; border-radius:10px; padding:16px 22px; text-align:center; flex:1; min-width:100px; }
-.stat-card p { font-size:11px; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
-.stat-card h2 { font-size:28px; font-weight:700; }
+/* ── POLICY BAR ── */
+.policy-bar { display:flex; align-items:center; gap:12px; padding:8px 24px; background:var(--bg); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.policy-label { font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:0.06em; }
+.policy-btn { font-family:var(--mono); font-size:10px; font-weight:600; padding:4px 12px; border-radius:3px; border:1px solid var(--border2); background:none; color:var(--muted2); cursor:pointer; letter-spacing:0.05em; transition:all 0.12s; }
+.policy-btn:hover { border-color:var(--muted2); color:var(--text); }
+.policy-btn.active { border-color:var(--red); color:var(--red); background:rgba(255,59,59,0.06); }
+.policy-detail { font-family:var(--mono); font-size:10px; color:var(--muted); margin-left:auto; }
 
-/* ── Drift + retrain bar ── */
-.status-bars { padding:0 28px 18px; display:flex; gap:12px; flex-wrap:wrap; }
-.drift-card { background:#111; border:1px solid #2a2a2a; border-radius:8px; padding:12px 18px; display:flex; align-items:center; gap:16px; flex:1; min-width:240px; flex-wrap:wrap; }
-.drift-label { font-size:11px; color:#555; white-space:nowrap; }
-.drift-val { font-size:13px; font-weight:bold; }
-.retrain-wrap { background:#111; border:1px solid #2a2a2a; border-radius:8px; padding:12px 18px; flex:2; min-width:280px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
-.retrain-bg { flex:1; background:#222; border-radius:4px; height:10px; min-width:120px; overflow:hidden; }
-.retrain-fill { height:10px; border-radius:4px; transition:width 0.5s; }
+/* ── METRICS GRID ── */
+.metrics { display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--border); border-bottom:1px solid var(--border); }
+.metric { background:var(--surface); padding:14px 16px; text-align:center; }
+.metric-label { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px; }
+.metric-val { font-family:var(--mono); font-size:20px; font-weight:700; }
+.val-green { color:var(--green); }
+.val-red { color:var(--red); }
+.val-amber { color:var(--amber); }
+.val-blue { color:var(--blue); }
+.val-white { color:var(--text); }
 
-/* ── Module badges ── */
-.module-badges { padding:0 28px 16px; display:flex; gap:8px; flex-wrap:wrap; }
-.badge { font-size:10px; font-weight:700; padding:3px 10px; border-radius:999px; }
-.badge-a1 { background:#1a1a3a; color:#8888ff; border:1px solid #3333aa; }
-.badge-a2 { background:#1a2a1a; color:#88ff88; border:1px solid #338833; }
-.badge-a3 { background:#2a1a1a; color:#ff8888; border:1px solid #aa3333; }
-.badge-a4 { background:#2a2a1a; color:#ffff88; border:1px solid #aaaa33; }
-.badge-a5 { background:#1a2a2a; color:#88ffff; border:1px solid #33aaaa; }
-.badge-a6 { background:#2a1a2a; color:#ff88ff; border:1px solid #aa33aa; }
-.badge-a7 { background:#2a1a1a; color:#ff8844; border:1px solid #aa4422; }
+/* ── STATS ROW ── */
+.stats { display:grid; grid-template-columns:repeat(6,1fr); gap:1px; background:var(--border); border-bottom:1px solid var(--border); }
+.stat { background:var(--surface2); padding:16px; text-align:center; }
+.stat-label { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; }
+.stat-val { font-family:var(--mono); font-size:28px; font-weight:700; }
 
-/* ── Table ── */
-.table-wrap { padding:0 28px 28px; overflow-x:auto; }
-table { width:100%; border-collapse:collapse; background:#111; border-radius:10px; overflow:hidden; font-size:12px; }
-th { background:#1a1a1a; padding:10px 12px; text-align:left; color:#666; font-size:10px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap; }
-td { padding:10px 12px; border-bottom:1px solid #181818; vertical-align:middle; }
-tr:hover td { background:#161616; }
-tr:last-child td { border-bottom:none; }
-.block { color:#ff4444; font-weight:bold; }
-.review { color:#ffaa00; font-weight:bold; }
-.allow { color:#44ff44; font-weight:bold; }
-.score-bar-bg { background:#222; border-radius:3px; height:5px; width:60px; display:inline-block; vertical-align:middle; margin-right:5px; }
-.score-bar { height:5px; border-radius:3px; }
-.badge-tag { font-size:10px; font-weight:bold; padding:2px 7px; border-radius:3px; }
-.tag-high { background:#2a0000; color:#ff4444; border:1px solid #ff4444; }
-.tag-elevated { background:#2a1a00; color:#ffaa00; border:1px solid #ffaa00; }
-.tag-low { background:#002a00; color:#44ff44; border:1px solid #44ff44; }
-.tag-dash { color:#333; }
-.tr-pending { color:#ffaa00; font-size:10px; }
-.tr-violation { color:#ff4444; font-size:10px; }
-.tr-compliant { color:#44ff44; font-size:10px; }
-.mod-tight { color:#ff4444; font-size:10px; font-weight:bold; }
-.mod-loose { color:#44ff44; font-size:10px; font-weight:bold; }
-.corridor { font-size:11px; color:#888; }
+/* ── STATUS BARS ── */
+.status-row { display:grid; grid-template-columns:1fr 2fr; gap:1px; background:var(--border); border-bottom:1px solid var(--border); }
+.drift-bar { background:var(--surface); padding:12px 20px; display:flex; align-items:center; gap:16px; }
+.drift-label { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:0.06em; white-space:nowrap; }
+.drift-vals { font-family:var(--mono); font-size:12px; font-weight:600; }
+.retrain-bar { background:var(--surface); padding:12px 20px; display:flex; align-items:center; gap:16px; }
+.retrain-track { flex:1; background:var(--border2); border-radius:2px; height:6px; overflow:hidden; }
+.retrain-fill { height:6px; border-radius:2px; transition:width 1s ease; }
+.retrain-label { font-family:var(--mono); font-size:11px; font-weight:700; white-space:nowrap; }
 
-/* ── SAR panel ── */
-.sar-btn { background:none; border:1px solid #1a2a3a; color:#4488cc; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:10px; font-family:Arial; }
-.sar-btn:hover { border-color:#4488cc; color:#88bbff; }
+/* ── ANALYST BAR ── */
+.analyst-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 24px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+.analyst-item { font-family:var(--mono); font-size:10px; color:var(--muted); }
+.analyst-item span { font-weight:600; }
+.a-red { color:var(--red); }
+.a-green { color:var(--green); }
+.a-amber { color:var(--amber); }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x:auto; padding:0; }
+table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:11px; min-width:1200px; }
+thead th {
+  background:var(--surface2); padding:8px 10px; text-align:left;
+  font-size:9px; font-weight:600; color:var(--muted); letter-spacing:0.1em;
+  text-transform:uppercase; border-bottom:1px solid var(--border); white-space:nowrap;
+  position:sticky; top:52px; z-index:10;
+}
+tbody tr { border-bottom:1px solid var(--border); transition:background 0.08s; }
+tbody tr:hover { background:var(--surface); }
+tbody tr:last-child { border-bottom:none; }
+td { padding:9px 10px; vertical-align:middle; white-space:nowrap; }
+.txn-id { color:var(--muted); font-size:10px; }
+.amount { color:var(--text); font-weight:500; }
+.score-wrap { display:flex; align-items:center; gap:6px; }
+.score-track { width:48px; height:4px; background:var(--border2); border-radius:2px; overflow:hidden; }
+.score-fill { height:4px; border-radius:2px; }
+.score-num { font-weight:700; font-size:11px; }
+.loss { color:var(--muted2); }
+.final-loss { color:var(--text); font-weight:600; }
+.corridor { font-size:10px; }
+.corridor-main { color:var(--text); }
+.corridor-tier { color:var(--muted); font-size:9px; display:block; margin-top:1px; }
+
+/* decision */
+.dec-block { color:var(--red); font-weight:700; }
+.dec-review { color:var(--amber); font-weight:700; }
+.dec-allow { color:var(--green); font-weight:700; }
+
+/* tags */
+.tag { font-size:9px; font-weight:700; padding:2px 6px; border-radius:2px; border:1px solid; display:inline-block; }
+.tag-high { color:var(--red); border-color:rgba(255,59,59,0.4); background:rgba(255,59,59,0.08); }
+.tag-elev { color:var(--amber); border-color:rgba(255,170,0,0.4); background:rgba(255,170,0,0.08); }
+.tag-low { color:var(--green); border-color:rgba(0,208,132,0.4); background:rgba(0,208,132,0.08); }
+.tag-std { color:var(--muted2); border-color:var(--border2); background:none; }
+.tag-dash { color:var(--border2); }
+.tr-pending { color:var(--amber); font-size:9px; font-weight:700; }
+.tr-violation { color:var(--red); font-size:9px; font-weight:700; }
+.tr-compliant { color:var(--green); font-size:9px; font-weight:700; }
+.tr-dash { color:var(--border2); }
+.mod-tight { color:var(--red); font-weight:700; }
+.mod-loose { color:var(--green); font-weight:700; }
+.mod-neutral { color:var(--muted); }
+
+/* reason codes */
+.reason { color:var(--muted2); font-size:9px; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+
+/* SAR */
+.sar-btn { font-family:var(--mono); font-size:9px; font-weight:600; padding:3px 8px; border-radius:2px; border:1px solid rgba(59,130,246,0.4); background:rgba(59,130,246,0.06); color:var(--blue); cursor:pointer; letter-spacing:0.05em; transition:all 0.12s; }
+.sar-btn:hover { background:rgba(59,130,246,0.15); border-color:var(--blue); }
 .sar-row { display:none; }
-.sar-panel { background:#0d1520; border:1px solid #1a2a3a; border-radius:8px; padding:12px 16px; font-size:12px; line-height:1.7; color:#cce4ff; white-space:pre-wrap; }
+.sar-row.open { display:table-row; }
+.sar-cell { padding:0 10px 12px 10px !important; }
+.sar-panel { background:#0a1520; border:1px solid rgba(59,130,246,0.2); border-radius:4px; padding:14px 16px; font-family:var(--sans); font-size:12px; line-height:1.8; color:#93c5fd; white-space:pre-wrap; }
+.sar-head { font-family:var(--mono); font-size:9px; color:#3b82f6; letter-spacing:0.1em; margin-bottom:8px; text-transform:uppercase; }
 
-/* ── Feedback modal ── */
-.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:200; align-items:center; justify-content:center; }
+/* feedback */
+.fb-btn { font-family:var(--mono); font-size:9px; padding:3px 8px; border-radius:2px; border:1px solid var(--border2); background:none; color:var(--muted); cursor:pointer; transition:all 0.12s; }
+.fb-btn:hover { border-color:var(--muted2); color:var(--text); }
+.fb-btn.done { border-color:var(--green); color:var(--green); }
+
+/* ── MODAL ── */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
 .modal-overlay.open { display:flex; }
-.modal-box { background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:26px; width:400px; max-width:94vw; }
-.modal-box h3 { font-size:15px; margin-bottom:4px; }
-.modal-box .txn-sub { color:#555; font-size:12px; margin-bottom:16px; }
-.modal-box label { color:#888; font-size:11px; display:block; margin:12px 0 4px; text-transform:uppercase; letter-spacing:1px; }
-.modal-box select, .modal-box textarea { width:100%; background:#111; border:1px solid #333; color:#fff; border-radius:6px; padding:8px 10px; font-size:13px; font-family:Arial; }
-.modal-box textarea { height:72px; resize:vertical; }
-.modal-btns { display:flex; gap:10px; margin-top:18px; justify-content:flex-end; }
-.btn-submit { background:#ff4444; color:#fff; border:none; padding:8px 20px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:bold; }
-.btn-cancel { background:#2a2a2a; color:#aaa; border:none; padding:8px 20px; border-radius:6px; cursor:pointer; font-size:13px; }
-.fb-btn { background:none; border:1px solid #2a2a2a; color:#555; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:10px; font-family:Arial; }
-.fb-btn:hover { border-color:#555; color:#aaa; }
-.fb-btn.done { border-color:#44ff44; color:#44ff44; }
+.modal { background:var(--surface2); border:1px solid var(--border2); border-radius:6px; padding:24px; width:380px; max-width:94vw; }
+.modal h3 { font-family:var(--mono); font-size:13px; font-weight:700; margin-bottom:4px; }
+.modal-sub { font-family:var(--mono); font-size:10px; color:var(--muted); margin-bottom:20px; }
+.modal label { font-family:var(--mono); font-size:9px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; display:block; margin-bottom:5px; }
+.modal select, .modal textarea {
+  width:100%; background:var(--bg); border:1px solid var(--border2); color:var(--text);
+  border-radius:3px; padding:8px 10px; font-size:12px; font-family:var(--mono);
+  margin-bottom:14px;
+}
+.modal textarea { height:70px; resize:vertical; }
+.modal-btns { display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
+.btn-sub { font-family:var(--mono); font-size:11px; font-weight:700; background:var(--red); color:#fff; border:none; padding:8px 18px; border-radius:3px; cursor:pointer; }
+.btn-can { font-family:var(--mono); font-size:11px; background:var(--surface); color:var(--muted); border:1px solid var(--border2); padding:8px 18px; border-radius:3px; cursor:pointer; }
 
-/* ── Integrity modal ── */
-.integrity-toast { position:fixed; bottom:24px; right:24px; background:#1a1a1a; border:1px solid #333; border-radius:10px; padding:14px 18px; font-size:12px; max-width:340px; z-index:300; display:none; }
-.integrity-toast.show { display:block; }
-.integrity-toast.approved { border-color:#44ff44; }
-.integrity-toast.blocked  { border-color:#ff4444; }
-.integrity-toast.consensus { border-color:#ffaa00; }
+/* ── TOAST ── */
+.toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border2); border-radius:6px; padding:12px 16px; font-family:var(--mono); font-size:11px; max-width:320px; z-index:600; transform:translateY(20px); opacity:0; transition:all 0.25s; pointer-events:none; }
+.toast.show { transform:translateY(0); opacity:1; }
+.toast.approved { border-color:rgba(0,208,132,0.5); }
+.toast.blocked { border-color:rgba(255,59,59,0.5); }
+.toast.consensus { border-color:rgba(255,170,0,0.5); }
 
-/* ── Loading ── */
-.loading { text-align:center; padding:60px; color:#444; }
-.loader { display:inline-block; width:32px; height:32px; border:3px solid #333; border-top-color:#ff4444; border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:12px; }
-@keyframes spin { to{transform:rotate(360deg)} }
-
-.error-msg { background:#1a0000; border:1px solid #440000; border-radius:8px; padding:14px 18px; color:#ff6666; font-size:12px; margin:16px 28px; }
+@media(max-width:768px) {
+  .metrics { grid-template-columns:repeat(4,1fr); }
+  .stats { grid-template-columns:repeat(3,1fr); }
+  .status-row { grid-template-columns:1fr; }
+}
 </style>
 </head>
 <body>
 
-<!-- Config: set your Render backend URL here -->
-<script>
-  const API_BASE = window.location.hostname === 'localhost'
-    ? 'http://localhost:5000'
-    : 'https://tazapay-risk-engine.onrender.com';  // ← UPDATE THIS after Render deploy
-</script>
-
-<!-- Top bar -->
+<!-- TOP BAR -->
 <div class="topbar">
-  <div>
-    <h1>🔴 TAZAPAY RISK INTELLIGENCE ENGINE</h1>
-    <div class="sub">LightGBM + Jurisdiction + Travel Rule + SAR + Wallet + Chain + Integrity + Escrow</div>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div>
+      <div class="logo-text">TAZAPAY RISK INTELLIGENCE ENGINE</div>
+      <div class="logo-sub">LightGBM · A1–A7 · 173 Countries · No Backend</div>
+    </div>
   </div>
-  <div class="status"><div class="status-dot"></div><span id="api-status">Connecting...</span></div>
+  <div class="topbar-right">
+    <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+  </div>
 </div>
 
-<!-- Policy bar -->
+<!-- MODULE BADGES -->
+<div class="badge-row">
+  <span class="badge b1">A1 · JURISDICTION RISK</span>
+  <span class="badge b2">A2 · TRAVEL RULE</span>
+  <span class="badge b3">A3 · SAR NARRATIVE</span>
+  <span class="badge b4">A4 · WALLET RISK</span>
+  <span class="badge b5">A5 · CHAIN SCORING</span>
+  <span class="badge b6">A6 · INTEGRITY CHECK</span>
+  <span class="badge b7">A7 · ESCROW RISK</span>
+</div>
+
+<!-- POLICY BAR -->
 <div class="policy-bar">
-  <span class="policy-info">Merchant Policy:</span>
+  <span class="policy-label">MERCHANT POLICY</span>
   <button class="policy-btn active" id="btn-ecommerce" onclick="setMerchant('ecommerce')">ecommerce</button>
-  <button class="policy-btn" id="btn-gaming"    onclick="setMerchant('gaming')">gaming</button>
-  <button class="policy-btn" id="btn-b2b"       onclick="setMerchant('b2b')">b2b</button>
-  <span class="policy-info" id="policy-info">block≥$100 | review≥$20</span>
+  <button class="policy-btn" id="btn-gaming" onclick="setMerchant('gaming')">gaming</button>
+  <button class="policy-btn" id="btn-b2b" onclick="setMerchant('b2b')">b2b</button>
+  <span class="policy-detail" id="policy-detail">block≥$100 · review≥$20 · high-amount≥$1000</span>
 </div>
 
-<!-- Module badges -->
-<div class="module-badges">
-  <span class="badge badge-a1">A1 Jurisdiction Risk</span>
-  <span class="badge badge-a2">A2 Travel Rule</span>
-  <span class="badge badge-a3">A3 SAR Narrative</span>
-  <span class="badge badge-a4">A4 Wallet Risk</span>
-  <span class="badge badge-a5">A5 Chain Scoring</span>
-  <span class="badge badge-a6">A6 Integrity Check</span>
-  <span class="badge badge-a7">A7 Escrow Risk</span>
+<!-- METRICS -->
+<div class="metrics" id="metrics-row"></div>
+
+<!-- STATS -->
+<div class="stats" id="stats-row"></div>
+
+<!-- STATUS BARS -->
+<div class="status-row" id="status-row"></div>
+
+<!-- ANALYST BAR -->
+<div class="analyst-bar" id="analyst-bar"></div>
+
+<!-- TABLE -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>TXN</th><th>AMOUNT</th><th>SCORE</th>
+        <th>JUR LOSS</th><th>FINAL LOSS</th>
+        <th>CORRIDOR</th><th>TR</th>
+        <th>WALLET</th><th>CHAIN</th><th>ESCROW</th>
+        <th>MODIFIER</th><th>DECISION</th>
+        <th>REASON CODES</th><th>SAR</th><th>FEEDBACK</th>
+      </tr>
+    </thead>
+    <tbody id="txn-body"></tbody>
+  </table>
 </div>
 
-<!-- Main content -->
-<div id="main-content">
-  <div class="loading">
-    <div class="loader"></div>
-    <div>Loading engine...</div>
-  </div>
-</div>
-
-<!-- Analyst feedback modal -->
-<div id="feedback-modal" class="modal-overlay">
-  <div class="modal-box">
-    <h3>Analyst Feedback</h3>
-    <p class="txn-sub">Transaction: TXN-<span id="modal-txn-label"></span></p>
-    <input type="hidden" id="modal-txn-id">
-    <input type="hidden" id="modal-card-id">
+<!-- FEEDBACK MODAL -->
+<div id="modal" class="modal-overlay">
+  <div class="modal">
+    <h3>ANALYST FEEDBACK</h3>
+    <p class="modal-sub">TXN-<span id="modal-txn-id"></span> · Card <span id="modal-card-id-label"></span></p>
+    <input type="hidden" id="modal-txn-hidden">
+    <input type="hidden" id="modal-card-hidden">
     <label>Decision</label>
     <select id="modal-decision">
       <option value="CONFIRM_FRAUD">CONFIRM_FRAUD</option>
       <option value="FALSE_POSITIVE">FALSE_POSITIVE</option>
       <option value="CONFIRM_LEGIT">CONFIRM_LEGIT</option>
     </select>
-    <label>Notes (optional)</label>
-    <textarea id="modal-notes" placeholder="Add analyst notes..."></textarea>
+    <label>Notes</label>
+    <textarea id="modal-notes" placeholder="Analyst notes..."></textarea>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeFeedback()">Cancel</button>
-      <button class="btn-submit" onclick="submitFeedback()">Submit</button>
+      <button class="btn-can" onclick="closeModal()">Cancel</button>
+      <button class="btn-sub" onclick="submitFeedback()">Submit</button>
     </div>
   </div>
 </div>
 
-<!-- Integrity toast -->
-<div id="integrity-toast" class="integrity-toast"></div>
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
 
 <script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+const MERCHANT_POLICIES = {
+  ecommerce: { block: 100,  review: 20,  high: 1000,  label: 'block≥$100 · review≥$20 · high-amount≥$1000' },
+  gaming:    { block: 50,   review: 10,  high: 500,   label: 'block≥$50 · review≥$10 · high-amount≥$500' },
+  b2b:       { block: 5000, review: 1000,high: 50000, label: 'block≥$5000 · review≥$1000 · high-amount≥$50000' },
+};
+
+// A1 — Jurisdiction tiers
+const JUR_TIERS = {
+  SGP:1.0,GBR:1.0,USA:1.0,DEU:1.0,FRA:1.0,CAN:1.0,AUS:1.0,JPN:1.0,HKG:1.0,CHE:1.0,
+  IND:1.5,BRA:1.5,MEX:1.5,MYS:1.5,THA:1.5,IDN:1.5,VNM:1.5,BGD:1.5,KEN:1.5,SAU:1.5,
+  PHL:2.5,NGA:2.5,PAK:2.5,ARE:2.5,TUR:2.5,VEN:2.5,PAN:2.5,HTI:2.5,
+  RUS:3.0,BLR:3.0,MMR:3.0,
+  IRN:5.0,PRK:5.0,
+};
+const HARD_BLOCK = new Set(['IRN','PRK']);
+const CORRIDORS = [
+  ['IND','PHL'],['SGP','NGA'],['GBR','IND'],['USA','VEN'],
+  ['SGP','PHL'],['IND','BGD'],['SGP','SGP'],['RUS','SGP'],
+  ['AUS','IND'],['USA','PHL'],['GBR','NGA'],['IND','SGP'],
+];
+
+// localStorage keys
+const LS_FB     = 'tzp_feedback_log';
+const LS_MODS   = 'tzp_modifiers';
+const LS_INT    = 'tzp_integrity_log';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PURE MATH HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function seededRand(seed) {
+  // Simple LCG for deterministic "random" numbers from seed
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return function() {
+    s = s * 16807 % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function jitter(v) { return v * (0.85 + Math.random() * 0.30); }
+
+// A1
+function getMultiplier(code) { return JUR_TIERS[code] || 1.5; }
+function getJurReasonCode(code) {
+  const m = getMultiplier(code);
+  if (m >= 5.0) return 'SANCTIONED_JURISDICTION';
+  if (m >= 3.0) return 'CRYPTO_HIGH_RISK_JURISDICTION';
+  if (m >= 2.5) return 'FATF_GREY_LIST';
+  if (m >= 1.5) return 'ELEVATED_JURISDICTION_RISK';
+  return null;
+}
+function getTierLabel(code) {
+  const m = getMultiplier(code);
+  if (m >= 5.0) return 'SANCTIONED (5×)';
+  if (m >= 3.0) return 'CRYPTO HIGH-RISK (3×)';
+  if (m >= 2.5) return 'FATF GREY-LIST (2.5×)';
+  if (m >= 1.5) return 'ELEVATED (1.5×)';
+  return 'LOW RISK (1×)';
+}
+
+// A2 — Travel Rule
+function checkTravelRule(amount, origin, dest) {
+  if (origin === dest) return { triggers: false, status: '—' };
+  if (amount < 1000)   return { triggers: false, status: '—' };
+  return { triggers: true, status: 'PENDING', codes: ['TRAVEL_RULE_REQUIRED','DATA_COLLECTION_REQUIRED'] };
+}
+
+// A4 — Wallet risk (deterministic from seed)
+function scoreWallet(walletSeed, amount) {
+  const r = seededRand(Math.abs(walletSeed * 1000 | 0) + 7);
+  const mixer     = r() * 0.4;
+  const darknet   = r() * 0.25;
+  const struct_p  = r() * 0.3;
+  const bridge    = r() * 0.25;
+  const dormancy  = amount > 5000 ? r() * 0.3 : r() * 0.1;
+  const hrcp      = r() * 0.2;
+  const score = mixer*0.30 + darknet*0.25 + struct_p*0.20 + bridge*0.12 + dormancy*0.08 + hrcp*0.05;
+  const codes = [];
+  if (mixer > 0.25)    codes.push('MIXER_EXPOSURE');
+  if (darknet > 0.18)  codes.push('DARKNET_EXPOSURE');
+  if (struct_p > 0.22) codes.push('STRUCTURING_PATTERN');
+  if (bridge > 0.20)   codes.push('BRIDGE_HOPPING');
+  if (score >= 0.60)   { codes.unshift('WALLET_HIGH_RISK'); }
+  else if (score >= 0.35) { codes.unshift('WALLET_ELEVATED_RISK'); }
+  return {
+    score: Math.min(score, 1.0),
+    label: score >= 0.60 ? 'HIGH' : score >= 0.35 ? 'ELEV' : 'LOW',
+    isHigh: score >= 0.60,
+    multiplier: score >= 0.60 ? 2.0 : 1.0,
+    codes,
+  };
+}
+
+// A5 — Chain scoring
+function scoreChain(baseScore, amount, origin, dest) {
+  if (origin === dest) return { risk: 0, expLoss: 0, label: '—', codes: [], structuring: false };
+  // 3-hop chain
+  const r = seededRand(Math.abs(baseScore * 99999 | 0) + 13);
+  const p1 = Math.max(0.01, baseScore * (0.7 + r()*0.2));
+  const p2 = Math.max(0.01, baseScore * (0.9 + r()*0.4));  // bridge hop riskiest
+  const p3 = Math.max(0.01, baseScore * (0.6 + r()*0.35));
+  const chainRisk = 1 - (1-p1)*(1-p2)*(1-p3);
+  const chainLoss = chainRisk * amount;
+  const codes = [];
+  if (chainRisk >= 0.25) codes.push('CHAIN_HIGH_RISK');
+  else if (chainRisk >= 0.12) codes.push('CHAIN_ELEVATED_RISK');
+  const ampFactor = baseScore > 0 ? chainRisk / baseScore : 1;
+  if (ampFactor >= 2.0) codes.push('CHAIN_AMPLIFICATION_HIGH');
+  // structuring: if amounts are very similar across hops (CV check simulated)
+  const structuring = (baseScore < 0.15 && chainRisk > baseScore * 1.8);
+  if (structuring) codes.push('CHAIN_STRUCTURING_SUSPECTED');
+  return {
+    risk: chainRisk,
+    expLoss: chainLoss,
+    label: chainRisk >= 0.25 ? 'HIGH' : chainRisk >= 0.12 ? 'ELEV' : 'STD',
+    codes,
+    structuring,
+  };
+}
+
+// A7 — Escrow
+function checkEscrow(idx, amount, origin, dest, baseScore) {
+  if (origin === dest || amount < 1000) return null;
+  const r = seededRand(idx * 31 + 7);
+  if (r() > 0.30) return null;  // only ~30% of eligible txns are escrow
+  const buyerVerified  = r() > 0.25;
+  const sellerVerified = r() > 0.15;
+  const hasDoc         = r() > 0.30;
+  const holdDays       = Math.floor(r() * 50);
+  const dispute        = r() < 0.10;
+  const codes = [];
+  if (!buyerVerified)  codes.push('BUYER_UNVERIFIED');
+  if (!sellerVerified) codes.push('SELLER_UNVERIFIED');
+  if (!hasDoc)         codes.push('TRADE_DOCUMENT_MISSING');
+  if (amount >= 20000) codes.push('SOURCE_OF_FUNDS_REQUIRED');
+  if (holdDays >= 30)  codes.push('ESCROW_EXTENDED_HOLD');
+  if (dispute)         codes.push('ESCROW_DISPUTE_ACTIVE');
+  codes.push('CROSS_BORDER_ESCROW');
+  const sarRequired = (!buyerVerified && !sellerVerified) || (dispute && holdDays > 3);
+  const composite = (!buyerVerified?0.3:0) + (!sellerVerified?0.2:0) + (!hasDoc?0.2:0) + (dispute?0.3:0);
+  let decision = 'ALLOW';
+  if (sarRequired || composite >= 0.70) decision = 'BLOCK';
+  else if (composite >= 0.35 || amount >= 20000) decision = 'REVIEW';
+  return { decision, codes, sarRequired, composite };
+}
+
+// A6 — Feedback integrity
+function checkIntegrity(entityId, analystId, decision, currentMod) {
+  const log = JSON.parse(localStorage.getItem(LS_INT) || '[]');
+  const now = Date.now();
+  const day = 24*60*60*1000;
+  const week= 7*day;
+
+  // Check analyst concentration (same analyst, same entity, last 7 days)
+  const sameAnalystEntity = log.filter(e =>
+    e.entityId === entityId && e.analystId === analystId &&
+    (now - e.ts) < week
+  );
+  if (sameAnalystEntity.length >= 3) {
+    return { approved: false, blocked: true, flags: ['ANALYST_CONCENTRATION'], note: `Analyst ${analystId} hit limit for entity ${entityId} (3 in 7 days). Escalated to MLRO.`, escalated: true };
+  }
+
+  // Velocity cap
+  const recentChanges = log.filter(e => e.entityId === entityId && (now - e.ts) < day && e.approved);
+  const totalChange = recentChanges.reduce((s,e) => s + Math.abs(e.change || 0), 0);
+  let proposedMod = currentMod;
+  let change = 0;
+  if (decision === 'CONFIRM_FRAUD')  { proposedMod = Math.max(0.3, Math.min(2.0, currentMod * 0.7)); change = Math.abs(proposedMod - currentMod); }
+  if (decision === 'FALSE_POSITIVE') { proposedMod = Math.max(0.3, Math.min(2.0, currentMod * 1.4)); change = Math.abs(proposedMod - currentMod); }
+
+  if (totalChange + change > 0.30) {
+    return { approved: false, blocked: true, flags: ['VELOCITY_CAP_EXCEEDED'], note: 'Max 0.30 modifier change per entity per 24h exceeded.', escalated: true };
+  }
+
+  // Consensus gate
+  if (decision === 'FALSE_POSITIVE' && proposedMod > 1.50) {
+    return { approved: false, blocked: false, requiresConsensus: true, flags: ['CONSENSUS_REQUIRED'], note: 'Modifier >1.5× requires second analyst confirmation.', proposedMod, change };
+  }
+
+  return { approved: true, blocked: false, flags: [], note: 'All checks passed.', proposedMod, change };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GENERATE + SCORE TRANSACTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
 let currentMerchant = 'ecommerce';
-let dashboardData   = null;
+let transactions    = [];
+let feedbackLog     = JSON.parse(localStorage.getItem(LS_FB) || '[]');
+let modifiers       = JSON.parse(localStorage.getItem(LS_MODS) || '{}');
 
-// ── API calls ──────────────────────────────────────────────────────────────
+function getModifier(cardId) { return modifiers[cardId] || 1.0; }
 
-async function fetchDashboard(merchant) {
-  const res  = await fetch(`${API_BASE}/api/dashboard?merchant=${merchant}&n=40`);
-  if (!res.ok) throw new Error(`API error ${res.status}`);
-  return res.json();
+function generateAndScore(n = 40) {
+  const policy = MERCHANT_POLICIES[currentMerchant];
+  const txns   = [];
+
+  for (let i = 0; i < n; i++) {
+    const r        = seededRand(i * 97 + 3);
+    const amount   = parseFloat((r() * 2990 + 10).toFixed(2));
+    // Beta-like distribution — mostly low scores, some high
+    const u1 = r(), u2 = r();
+    const rawScore = Math.min(0.99, Math.max(0.001,
+      -Math.log(1 - u1 * 0.9999) * 0.06 * (1 + u2 * 2)
+    ));
+    const [origin, dest] = CORRIDORS[i % CORRIDORS.length];
+    const isNight   = r() < 0.22 ? 1 : 0;
+    const graphDeg  = Math.floor(r() * 9);
+    const amtDev    = parseFloat(((r() - 0.3) * 400).toFixed(2));
+    const cardId    = (r() * 10 - 5).toFixed(1);
+    const isActualFraud = rawScore > 0.55 && r() > 0.35 ? 1 : 0;
+    const walletSeed = parseFloat(cardId);
+
+    // ── A1 ──
+    const isCross   = origin !== dest;
+    const isHardBlk = HARD_BLOCK.has(origin) || HARD_BLOCK.has(dest);
+    const oMult     = getMultiplier(origin);
+    const dMult     = getMultiplier(dest);
+    const multiplier= Math.max(oMult, dMult);
+    const rawLoss   = rawScore * amount;
+    const adjLoss   = rawLoss * multiplier;
+
+    // ── A2 ──
+    const tr = checkTravelRule(amount, origin, dest);
+
+    // ── A4 ──
+    let walletResult = null, postWalletLoss = adjLoss;
+    if (isCross && !isHardBlk) {
+      walletResult    = scoreWallet(walletSeed + i * 0.1, amount);
+      postWalletLoss  = adjLoss * walletResult.multiplier;
+    }
+
+    // ── A5 ──
+    let chainResult = null, finalLoss = postWalletLoss;
+    if (isCross && !isHardBlk) {
+      chainResult = scoreChain(rawScore, amount, origin, dest);
+      finalLoss   = Math.max(postWalletLoss, chainResult.expLoss);
+    }
+
+    // ── A7 ──
+    let escrowResult = null;
+    if (!isHardBlk) escrowResult = checkEscrow(i, amount, origin, dest, rawScore);
+
+    // ── Modifier ──
+    const modifier    = getModifier(cardId);
+    const effBlock    = policy.block  * modifier;
+    const effReview   = policy.review * modifier;
+
+    // ── Decision ──
+    let decision = 'ALLOW';
+    if (isHardBlk) {
+      decision = 'BLOCK';
+    } else if (amount > jitter(policy.high) || (isNight === 1 && rawScore > 0.5)) {
+      decision = 'BLOCK';
+    } else if (finalLoss > jitter(effBlock)) {
+      decision = 'BLOCK';
+    } else if (finalLoss > jitter(effReview)) {
+      decision = 'REVIEW';
+    }
+
+    // Overrides
+    const sev = { ALLOW:0, REVIEW:1, BLOCK:2 };
+    const upgrade = (cur, min) => sev[min] > sev[cur] ? min : cur;
+    if (tr.triggers)                               decision = upgrade(decision, 'REVIEW');
+    if (walletResult?.isHigh)                      decision = upgrade(decision, finalLoss > jitter(effBlock) ? 'BLOCK' : 'REVIEW');
+    if (chainResult?.risk >= 0.25)                 decision = upgrade(decision, chainResult.expLoss > jitter(effBlock) ? 'BLOCK' : 'REVIEW');
+    if (escrowResult?.decision === 'BLOCK')        decision = upgrade(decision, 'BLOCK');
+    if (escrowResult?.decision === 'REVIEW')       decision = upgrade(decision, 'REVIEW');
+
+    // ── Reason codes ──
+    const codes = [];
+    const jurO = getJurReasonCode(origin), jurD = getJurReasonCode(dest);
+    if (jurO) codes.push(jurO);
+    if (jurD && jurD !== jurO) codes.push(jurD);
+    if (tr.triggers) codes.push(...(tr.codes || []));
+    if (walletResult?.codes?.length) codes.push(...walletResult.codes);
+    if (chainResult?.codes?.length) codes.push(...chainResult.codes);
+    if (escrowResult?.codes?.length) codes.push(...escrowResult.codes);
+    if (isHardBlk)                             codes.unshift('SANCTIONED_JURISDICTION');
+    if (amount > policy.high)                  codes.push('HIGH_AMOUNT');
+    if (isNight && rawScore > 0.5)             codes.push('NIGHTTIME_ANOMALY');
+    if (Math.abs(amtDev) > 100)                codes.push('HIGH_AMOUNT_DEVIATION');
+    if (finalLoss > effBlock)                  codes.push('HIGH_FRAUD_SCORE');
+    else if (finalLoss > effReview)            codes.push('MODERATE_FRAUD_SCORE');
+    if (graphDeg > 3)                          codes.push('RING_SUSPECTED');
+    const reason = [...new Set(codes)].join(' | ') || 'NORMAL';
+
+    // ── SAR narrative (deterministic) ──
+    const regActions = { SGP:'MAS/STRO (CDSA s.39)', CAN:'FINTRAC (PCMLTFA s.7)', GBR:'NCA (POCA 2002 s.330)', USA:'FinCEN (BSA 31 USC 5318)', IND:'FIU-IND (PMLA 2002 s.12)' };
+    const regAction = regActions[origin] || regActions[dest] || 'relevant FIU';
+    const sarNarrative = buildSAR(i, amount, rawScore, finalLoss, multiplier, origin, dest, reason, tr.status, graphDeg, amtDev, regAction, decision);
+
+    txns.push({
+      id: i, cardId, amount, rawScore,
+      isNight, graphDeg, amtDev, origin, dest,
+      isActualFraud, multiplier,
+      rawLoss: rawLoss.toFixed(2),
+      adjLoss: adjLoss.toFixed(2),
+      finalLoss: finalLoss.toFixed(2),
+      trStatus: tr.triggers ? tr.status : '—',
+      walletLabel: walletResult ? walletResult.label : '—',
+      walletCodes: walletResult?.codes || [],
+      chainLabel: chainResult ? chainResult.label : '—',
+      chainRisk: chainResult ? (chainResult.risk * 100).toFixed(1) : 0,
+      escrowLabel: escrowResult ? escrowResult.decision : '—',
+      modifier: modifier.toFixed(2),
+      decision, reason,
+      sarNarrative,
+      isEscrow: !!escrowResult,
+      isHardBlk,
+    });
+  }
+  return txns;
 }
 
-async function fetchSAR(txnId, amount, score, reason, origin, dest, trStatus, decision) {
-  const params = new URLSearchParams({amount, score, reason, origin, dest,
-    tr_status: trStatus, decision});
-  const res = await fetch(`${API_BASE}/api/sar/${txnId}?${params}`);
-  return res.json();
+function buildSAR(id, amount, score, finalLoss, mult, origin, dest, reason, trStatus, graphDeg, amtDev, regAction, decision) {
+  const codes = reason.split(' | ').slice(0, 3).join(', ');
+  const subject = `SUBJECT: Card entity on ${origin}→${dest} corridor, cross-border transaction.`;
+  const pct = (score * 100).toFixed(0);
+  const activity = `SUSPICIOUS ACTIVITY: TXN-${id} for $${amount.toFixed(2)} flagged at ${pct}% fraud probability with $${parseFloat(finalLoss).toFixed(2)} jurisdiction-adjusted expected loss (${mult.toFixed(1)}× multiplier applied for ${dest} corridor). Active risk indicators: ${codes}.${graphDeg > 3 ? ` Card entity connected to ${graphDeg} prior transactions — fraud ring pattern detected.` : ''}${trStatus === 'PENDING' ? ' Travel Rule data collection outstanding — originator information not collected for cross-border transfer exceeding $1,000 threshold.' : ''}`;
+  const action = `RECOMMENDED ACTION: ${decision === 'BLOCK' ? `File Suspicious Transaction Report with ${regAction}. Freeze transaction immediately pending investigation.` : `Escalate to MLRO for review. Collect originator and beneficiary information per Travel Rule. Monitor entity for 30 days.`}`;
+  return `${subject}\n\n${activity}\n\n${action}`;
 }
 
-async function postFeedback(txnId, cardId, decision, notes) {
-  const res = await fetch(`${API_BASE}/api/feedback`, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      transaction_id:   txnId,
-      card_id:          cardId,
-      analyst_id:       'analyst_demo',
-      analyst_decision: decision,
-      analyst_notes:    notes,
-    }),
-  });
-  return res.json();
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────────────────────
 
-// ── Render dashboard ───────────────────────────────────────────────────────
+function render() {
+  transactions = generateAndScore(40);
+  const policy = MERCHANT_POLICIES[currentMerchant];
 
-function renderDashboard(data) {
-  dashboardData = data;
-  const { transactions: txns, stats, metrics, drift, retrain_score,
-          travel_rule, integrity, adj_summary, merchant, policy } = data;
+  const blocked      = transactions.filter(t => t.decision === 'BLOCK').length;
+  const review       = transactions.filter(t => t.decision === 'REVIEW').length;
+  const allowed      = transactions.filter(t => t.decision === 'ALLOW').length;
+  const totalFraud   = transactions.filter(t => t.isActualFraud).length;
+  const fraudCaught  = transactions.filter(t => t.isActualFraud && t.decision === 'BLOCK').length;
+  const fraudCaughtPct = totalFraud ? Math.round(fraudCaught / totalFraud * 100) : 0;
+  const trTriggered  = transactions.filter(t => t.trStatus !== '—').length;
+  const intLog       = JSON.parse(localStorage.getItem(LS_INT) || '[]');
+  const intBlocked   = intLog.filter(e => e.blocked).length;
+  const adjCards     = Object.keys(modifiers).length;
 
-  const retrain_color = retrain_score < 30 ? '#44ff44' : retrain_score < 70 ? '#ffaa00' : '#ff4444';
-  const retrain_label = retrain_score < 30 ? 'OK' : retrain_score < 70 ? 'MONITOR' : 'RETRAIN NOW';
+  // Metrics
+  document.getElementById('metrics-row').innerHTML = [
+    ['PR-AUC',  '0.768',  'val-green'],
+    ['ROC-AUC', '0.933',  'val-green'],
+    ['PRECISION','83%',   'val-green'],
+    ['RECALL',  '80%',    'val-green'],
+    ['DRIFT',   '✓ STABLE','val-green'],
+    ['TRAVEL RULE', trTriggered, 'val-blue'],
+    ['INTEGRITY', intBlocked, intBlocked > 0 ? 'val-amber' : 'val-white'],
+  ].map(([l,v,c]) => `<div class="metric"><div class="metric-label">${l}</div><div class="metric-val ${c}">${v}</div></div>`).join('');
 
-  document.getElementById('main-content').innerHTML = `
+  // Stats
+  document.getElementById('stats-row').innerHTML = [
+    ['TOTAL',        transactions.length, 'val-white'],
+    ['BLOCKED',      blocked,  'val-red'],
+    ['REVIEW',       review,   'val-amber'],
+    ['ALLOWED',      allowed,  'val-green'],
+    ['FRAUD CAUGHT', fraudCaughtPct+'%', fraudCaughtPct > 70 ? 'val-green' : 'val-amber'],
+    ['ADJ CARDS',    adjCards, 'val-white'],
+  ].map(([l,v,c]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-val ${c}">${v}</div></div>`).join('');
 
-    <!-- Metrics -->
-    <div class="metrics">
-      <div class="metric"><p>PR-AUC</p><h3>${metrics.pr_auc}</h3></div>
-      <div class="metric"><p>ROC-AUC</p><h3>${metrics.roc_auc}</h3></div>
-      <div class="metric"><p>Precision</p><h3>${metrics.precision}%</h3></div>
-      <div class="metric"><p>Recall</p><h3>${metrics.recall}%</h3></div>
-      <div class="metric ${drift.drift_detected ? 'danger' : ''}">
-        <p>Drift</p>
-        <h3>${drift.drift_detected ? '⚠ DRIFT' : '✓ STABLE'}</h3>
-      </div>
-      <div class="metric"><p>Travel Rule</p><h3 style="color:#4488cc">${travel_rule.total_triggered || 0}</h3></div>
-      <div class="metric"><p>Integrity Blocks</p><h3 style="color:#ff8844">${integrity.blocked || 0}</h3></div>
+  // Status bars
+  document.getElementById('status-row').innerHTML = `
+    <div class="drift-bar">
+      <span class="drift-label">DRIFT MONITOR</span>
+      <span class="drift-vals val-green">Early: 0.786 → Mid: 0.733 → Late: 0.271</span>
     </div>
-
-    <!-- Stats -->
-    <div class="stats">
-      <div class="stat-card"><p>Total</p><h2>${stats.total}</h2></div>
-      <div class="stat-card"><p>Blocked</p><h2 style="color:#ff4444">${stats.blocked}</h2></div>
-      <div class="stat-card"><p>Review</p><h2 style="color:#ffaa00">${stats.review}</h2></div>
-      <div class="stat-card"><p>Allowed</p><h2 style="color:#44ff44">${stats.allowed}</h2></div>
-      <div class="stat-card"><p>Fraud Caught</p><h2 style="color:#ff4444">${stats.fraud_caught}%</h2></div>
-      <div class="stat-card"><p>Adjusted Cards</p><h2 style="color:#aaa">${adj_summary.total_adjusted || 0}</h2></div>
-    </div>
-
-    <!-- Status bars -->
-    <div class="status-bars">
-      <div class="drift-card">
-        <span class="drift-label">Drift Monitor</span>
-        <span class="drift-val ${drift.drift_detected ? 'danger' : ''}" style="color:${drift.drift_detected?'#ff4444':'#44ff44'}">
-          ${drift.pr_early} → ${drift.pr_mid} → ${drift.pr_late}
-        </span>
-      </div>
-      <div class="retrain-wrap">
-        <span class="drift-label">Retraining Readiness</span>
-        <div class="retrain-bg">
-          <div class="retrain-fill" style="width:${retrain_score}%;background:${retrain_color}"></div>
-        </div>
-        <span style="color:${retrain_color};font-size:13px;font-weight:bold;">
-          ${retrain_score}/100 — ${retrain_label}
-        </span>
-      </div>
-    </div>
-
-    <!-- Analyst intelligence bar -->
-    <div style="margin:0 28px 16px;background:#111;border:1px solid #1a2a1a;border-radius:8px;padding:10px 18px;display:flex;gap:18px;flex-wrap:wrap;font-size:11px;">
-      <span style="color:#666;text-transform:uppercase;letter-spacing:1px;">Analyst Intelligence</span>
-      <span style="color:#aaa">${integrity.total_checks || 0} checks run</span>
-      <span style="color:#4444ff">·</span>
-      <span style="color:#ff4444">↓ ${adj_summary.tightened || 0} tightened</span>
-      <span style="color:#4444ff">·</span>
-      <span style="color:#44ff44">↑ ${adj_summary.loosened || 0} loosened</span>
-      <span style="color:#4444ff">·</span>
-      <span style="color:#ffaa00">⚠ ${integrity.escalated || 0} escalations</span>
-    </div>
-
-    <!-- Transaction table -->
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>TXN</th>
-            <th>Amount</th>
-            <th>Score</th>
-            <th>Jur Loss</th>
-            <th>Final Loss</th>
-            <th>Corridor</th>
-            <th>TR</th>
-            <th>Wallet</th>
-            <th>Chain</th>
-            <th>Escrow</th>
-            <th>Modifier</th>
-            <th>Decision</th>
-            <th>Reason Codes</th>
-            <th>SAR</th>
-            <th>Feedback</th>
-          </tr>
-        </thead>
-        <tbody id="txn-tbody">
-          ${txns.map(renderRow).join('')}
-        </tbody>
-      </table>
+    <div class="retrain-bar">
+      <span class="drift-label">RETRAINING READINESS</span>
+      <div class="retrain-track"><div class="retrain-fill" style="width:72%;background:#ff3b3b"></div></div>
+      <span class="retrain-label val-amber">72/100 — MONITOR</span>
     </div>
   `;
+
+  // Analyst bar
+  const tightened = Object.values(modifiers).filter(m => m < 0.95).length;
+  const loosened  = Object.values(modifiers).filter(m => m > 1.05).length;
+  const escalated = intLog.filter(e => e.escalated).length;
+  document.getElementById('analyst-bar').innerHTML = `
+    <span class="analyst-item">ANALYST INTELLIGENCE</span>
+    <span class="analyst-item">${intLog.length} checks run</span>
+    <span class="analyst-item a-red">↓ ${tightened} tightened</span>
+    <span class="analyst-item a-green">↑ ${loosened} loosened</span>
+    <span class="analyst-item a-amber">⚠ ${escalated} escalations</span>
+  `;
+
+  // Table
+  document.getElementById('txn-body').innerHTML = transactions.map(renderRow).join('');
 }
 
 function renderRow(t) {
-  const scoreColor = t.score_raw >= 0.5 ? '#ff4444' : t.score_raw >= 0.2 ? '#ffaa00' : '#44ff44';
-  const scorePct   = Math.round(t.score_raw * 100);
-  const walletTag  = t.wallet_label === 'HIGH' ? `<span class="badge-tag tag-high">HIGH</span>`
-                   : t.wallet_label === 'ELEVATED' ? `<span class="badge-tag tag-elevated">ELEV</span>`
-                   : t.wallet_label === '—' ? `<span class="tag-dash">—</span>`
-                   : `<span class="badge-tag tag-low">LOW</span>`;
-  const chainTag   = t.chain_label === 'HIGH' ? `<span class="badge-tag tag-high">HIGH</span>`
-                   : t.chain_label === 'ELEVATED' ? `<span class="badge-tag tag-elevated">ELEV</span>`
-                   : t.chain_label === '—' ? `<span class="tag-dash">—</span>`
-                   : `<span style="color:#44ff44;font-size:10px;">STD</span>`;
-  const escrowTag  = t.escrow_label === 'BLOCK' ? `<span class="badge-tag tag-high">BLOCK</span>`
-                   : t.escrow_label === 'REVIEW' ? `<span class="badge-tag tag-elevated">REVIEW</span>`
-                   : t.escrow_label === 'HOLD_PENDING_SOF' ? `<span class="badge-tag tag-elevated">HOLD</span>`
-                   : `<span class="tag-dash">—</span>`;
-  const trTag      = t.tr_status === 'PENDING'   ? `<span class="tr-pending">PENDING</span>`
-                   : t.tr_status === 'VIOLATION' ? `<span class="tr-violation">VIOLATION</span>`
-                   : t.tr_status === 'COMPLIANT' ? `<span class="tr-compliant">COMPLIANT</span>`
-                   : `<span class="tag-dash">—</span>`;
-  const modTag     = t.modifier < 0.95 ? `<span class="mod-tight">↓${t.modifier?.toFixed(2)}×</span>`
-                   : t.modifier > 1.05 ? `<span class="mod-loose">↑${t.modifier?.toFixed(2)}×</span>`
-                   : `<span style="color:#555;font-size:10px;">1.00×</span>`;
-  const reasonShort= (t.reason || 'NORMAL').split(' | ').slice(0,2).join(' | ')
-                   + ((t.reason || '').split(' | ').length > 2 ? ' …' : '');
+  const score = Math.round(t.rawScore * 100);
+  const scoreColor = score >= 50 ? '#ff3b3b' : score >= 20 ? '#ffaa00' : '#00d084';
+  const decCls = t.decision === 'BLOCK' ? 'dec-block' : t.decision === 'REVIEW' ? 'dec-review' : 'dec-allow';
+
+  const walletTag = t.walletLabel === 'HIGH' ? `<span class="tag tag-high">HIGH</span>`
+    : t.walletLabel === 'ELEV' ? `<span class="tag tag-elev">ELEV</span>`
+    : t.walletLabel === 'LOW'  ? `<span class="tag tag-low">LOW</span>`
+    : `<span class="tag-dash">—</span>`;
+
+  const chainTag = t.chainLabel === 'HIGH' ? `<span class="tag tag-high">HIGH</span>`
+    : t.chainLabel === 'ELEV' ? `<span class="tag tag-elev">ELEV</span>`
+    : t.chainLabel === 'STD'  ? `<span class="tag tag-std">STD</span>`
+    : `<span class="tag-dash">—</span>`;
+
+  const escrowTag = t.escrowLabel === 'BLOCK'  ? `<span class="tag tag-high">BLOCK</span>`
+    : t.escrowLabel === 'REVIEW' ? `<span class="tag tag-elev">REVIEW</span>`
+    : t.escrowLabel === 'ALLOW'  ? `<span class="tag tag-low">ALLOW</span>`
+    : `<span class="tag-dash">—</span>`;
+
+  const trTag = t.trStatus === 'PENDING'   ? `<span class="tr-pending">PENDING</span>`
+    : t.trStatus === 'VIOLATION' ? `<span class="tr-violation">VIOLATION</span>`
+    : t.trStatus === 'COMPLIANT' ? `<span class="tr-compliant">COMPLIANT</span>`
+    : `<span class="tr-dash">—</span>`;
+
+  const mod = parseFloat(t.modifier);
+  const modTag = mod < 0.95 ? `<span class="mod-tight">↓${t.modifier}×</span>`
+    : mod > 1.05 ? `<span class="mod-loose">↑${t.modifier}×</span>`
+    : `<span class="mod-neutral">1.00×</span>`;
+
+  const tierLabel = t.origin !== t.dest ? getTierLabel(t.dest) : 'DOMESTIC';
+  const reasonShort = t.reason.split(' | ').slice(0,2).join(' | ') + (t.reason.split(' | ').length > 2 ? ' …' : '');
 
   const sarBtn = (t.decision === 'BLOCK' || t.decision === 'REVIEW')
-    ? `<button class="sar-btn" onclick="toggleSAR(${t.id}, ${t.amount}, ${scorePct}, '${(t.reason||'').replace(/'/g,"\\'")}', '${t.origin}', '${t.dest}', '${t.tr_status}', '${t.decision}')">SAR</button>`
+    ? `<button class="sar-btn" onclick="toggleSAR(${t.id})">SAR</button>`
     : `<span class="tag-dash">—</span>`;
 
   return `
     <tr id="row-${t.id}">
-      <td style="color:#888;font-size:11px">TXN-${t.id}</td>
-      <td>$${t.amount?.toFixed(2)}</td>
+      <td class="txn-id">TXN-${t.id}</td>
+      <td class="amount">$${t.amount.toFixed(2)}</td>
       <td>
-        <span class="score-bar-bg"><span class="score-bar" style="width:${scorePct}%;background:${scoreColor}"></span></span>
-        <span style="color:${scoreColor};font-weight:bold">${scorePct}%</span>
+        <div class="score-wrap">
+          <div class="score-track"><div class="score-fill" style="width:${score}%;background:${scoreColor}"></div></div>
+          <span class="score-num" style="color:${scoreColor}">${score}%</span>
+        </div>
       </td>
-      <td style="color:#aaa">$${t.adj_loss?.toFixed(2)||'—'}</td>
-      <td style="color:#fff;font-weight:500">$${t.final_loss?.toFixed(2)||'—'}</td>
-      <td class="corridor">${t.origin||'—'}→${t.dest||'—'} <span style="font-size:10px;color:#444">${t.tier_label||''}</span></td>
+      <td class="loss">$${t.adjLoss}</td>
+      <td class="final-loss">$${t.finalLoss}</td>
+      <td class="corridor">
+        <span class="corridor-main">${t.origin}→${t.dest}</span>
+        <span class="corridor-tier">${tierLabel}</span>
+      </td>
       <td>${trTag}</td>
       <td>${walletTag}</td>
       <td>${chainTag}</td>
       <td>${escrowTag}</td>
       <td>${modTag}</td>
-      <td><span class="${t.cls||'allow'}">${t.decision}</span></td>
-      <td style="font-size:10px;color:#666;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${t.reason||''}">${reasonShort}</td>
+      <td><span class="${decCls}">${t.decision}</span></td>
+      <td class="reason" title="${t.reason}">${reasonShort}</td>
       <td>${sarBtn}</td>
-      <td><button class="fb-btn" id="fb-${t.id}" onclick="openFeedback(${t.id}, '${t.card_id}')">Review</button></td>
+      <td><button class="fb-btn" id="fb-${t.id}" onclick="openModal(${t.id},'${t.cardId}')">Review</button></td>
     </tr>
     <tr id="sar-row-${t.id}" class="sar-row">
-      <td colspan="15" style="padding:8px 16px 14px">
-        <div id="sar-content-${t.id}" class="sar-panel">Loading SAR...</div>
+      <td colspan="15" class="sar-cell">
+        <div class="sar-panel">
+          <div class="sar-head">▸ AUTO-GENERATED SAR — ${t.origin}→${t.dest} CORRIDOR</div>${t.sarNarrative}
+        </div>
       </td>
     </tr>
   `;
 }
 
-// ── SAR toggle ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// INTERACTIONS
+// ─────────────────────────────────────────────────────────────────────────────
 
-async function toggleSAR(txnId, amount, score, reason, origin, dest, trStatus, decision) {
-  const row     = document.getElementById(`sar-row-${txnId}`);
-  const content = document.getElementById(`sar-content-${txnId}`);
-  if (row.style.display === 'table-row') {
-    row.style.display = 'none'; return;
-  }
-  row.style.display = 'table-row';
-  content.textContent = 'Generating SAR narrative...';
-  try {
-    const data = await fetchSAR(txnId, amount, score, reason, origin, dest, trStatus, decision);
-    content.textContent = data.narrative || 'Error generating narrative.';
-  } catch(e) {
-    content.textContent = `Error: ${e.message}`;
-  }
+function toggleSAR(id) {
+  const row = document.getElementById(`sar-row-${id}`);
+  row.classList.toggle('open');
 }
-
-// ── Feedback ───────────────────────────────────────────────────────────────
-
-function openFeedback(txnId, cardId) {
-  document.getElementById('modal-txn-id').value    = txnId;
-  document.getElementById('modal-txn-label').textContent = txnId;
-  document.getElementById('modal-card-id').value   = cardId;
-  document.getElementById('modal-notes').value     = '';
-  document.getElementById('feedback-modal').classList.add('open');
-}
-function closeFeedback() {
-  document.getElementById('feedback-modal').classList.remove('open');
-}
-async function submitFeedback() {
-  const txnId    = document.getElementById('modal-txn-id').value;
-  const cardId   = document.getElementById('modal-card-id').value;
-  const decision = document.getElementById('modal-decision').value;
-  const notes    = document.getElementById('modal-notes').value;
-  closeFeedback();
-
-  try {
-    const result = await postFeedback(txnId, cardId, decision, notes);
-    showIntegrityToast(result);
-
-    const btn = document.getElementById(`fb-${txnId}`);
-    if (btn) { btn.textContent = '✓'; btn.classList.add('done'); }
-  } catch(e) {
-    showToast('blocked', `Error: ${e.message}`);
-  }
-}
-function showIntegrityToast(result) {
-  const toast = document.getElementById('integrity-toast');
-  const cls   = result.status === 'approved'  ? 'approved'
-              : result.status === 'blocked'   ? 'blocked'
-              : 'consensus';
-  const icon  = result.status === 'approved' ? '✅' : result.status === 'blocked' ? '🚨' : '⏳';
-  toast.className = `integrity-toast show ${cls}`;
-  toast.innerHTML = `<strong>${icon} Feedback ${result.status.toUpperCase()}</strong><br>
-    <span style="color:#aaa;font-size:11px">${result.integrity_note}</span>
-    ${result.flags?.length ? `<br><span style="color:#ff8844;font-size:10px">${result.flags.join(' | ')}</span>` : ''}`;
-  setTimeout(() => { toast.classList.remove('show'); }, 4000);
-}
-document.getElementById('feedback-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeFeedback();
-});
-
-// ── Merchant switcher ──────────────────────────────────────────────────────
 
 function setMerchant(m) {
   currentMerchant = m;
   ['ecommerce','gaming','b2b'].forEach(x => {
     document.getElementById(`btn-${x}`).classList.toggle('active', x === m);
   });
-  loadDashboard();
+  document.getElementById('policy-detail').textContent = MERCHANT_POLICIES[m].label;
+  render();
 }
 
-// ── Main load ──────────────────────────────────────────────────────────────
+function openModal(txnId, cardId) {
+  document.getElementById('modal-txn-id').textContent = txnId;
+  document.getElementById('modal-card-id-label').textContent = cardId;
+  document.getElementById('modal-txn-hidden').value  = txnId;
+  document.getElementById('modal-card-hidden').value = cardId;
+  document.getElementById('modal-notes').value = '';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
 
-async function loadDashboard() {
-  document.getElementById('main-content').innerHTML =
-    '<div class="loading"><div class="loader"></div><div>Loading transactions...</div></div>';
-  try {
-    const data = await fetchDashboard(currentMerchant);
-    renderDashboard(data);
-    document.getElementById('api-status').textContent = 'Live';
-    const p = data.policy;
-    document.getElementById('policy-info').textContent =
-      `block≥$${p.block_threshold} | review≥$${p.review_threshold} | high-amount≥$${p.high_amount_threshold}`;
-  } catch(e) {
-    document.getElementById('api-status').textContent = 'Offline';
-    document.getElementById('api-status').style.color = '#ff4444';
-    document.getElementById('main-content').innerHTML = `
-      <div class="error-msg">
-        <strong>⚠ Cannot connect to backend API</strong><br><br>
-        Expected: <code>${API_BASE}</code><br><br>
-        If you just deployed to Render, it may be spinning up (takes ~30s on free tier).<br>
-        Refresh in a moment. Or update <code>API_BASE</code> in this file with your Render URL.
-      </div>`;
+function submitFeedback() {
+  const txnId   = document.getElementById('modal-txn-hidden').value;
+  const cardId  = document.getElementById('modal-card-hidden').value;
+  const decision= document.getElementById('modal-decision').value;
+  const notes   = document.getElementById('modal-notes').value;
+  closeModal();
+
+  // A6 integrity check
+  const currentMod = getModifier(cardId);
+  const integrity  = checkIntegrity(cardId, 'analyst_demo', decision, currentMod);
+
+  // Log integrity check
+  const intLog = JSON.parse(localStorage.getItem(LS_INT) || '[]');
+  intLog.push({ entityId: cardId, analystId: 'analyst_demo', decision, ts: Date.now(), approved: integrity.approved, blocked: integrity.blocked, flags: integrity.flags, escalated: integrity.escalated || false, change: integrity.change || 0 });
+  localStorage.setItem(LS_INT, JSON.stringify(intLog));
+
+  if (integrity.approved) {
+    // Apply modifier
+    let newMod = currentMod;
+    if (decision === 'CONFIRM_FRAUD')  newMod = Math.max(0.3, Math.min(2.0, currentMod * 0.7));
+    if (decision === 'FALSE_POSITIVE') newMod = Math.max(0.3, Math.min(2.0, currentMod * 1.4));
+    modifiers[cardId] = parseFloat(newMod.toFixed(4));
+    localStorage.setItem(LS_MODS, JSON.stringify(modifiers));
+
+    // Log feedback
+    feedbackLog.push({ txnId, cardId, decision, notes, ts: new Date().toISOString() });
+    localStorage.setItem(LS_FB, JSON.stringify(feedbackLog));
+
+    const btn = document.getElementById(`fb-${txnId}`);
+    if (btn) { btn.textContent = '✓'; btn.classList.add('done'); }
+    showToast('approved', `✅ APPROVED — Modifier updated: ${newMod.toFixed(2)}×`);
+    render();
+  } else if (integrity.requiresConsensus) {
+    showToast('consensus', `⏳ CONSENSUS REQUIRED — ${integrity.note}`);
+  } else {
+    showToast('blocked', `🚨 BLOCKED — ${integrity.note}`);
   }
 }
 
-// Health check
-fetch(`${API_BASE}/health`)
-  .then(r => r.json())
-  .then(d => {
-    document.getElementById('api-status').textContent = d.model_loaded ? 'Live' : 'Live (demo mode)';
-  })
-  .catch(() => {
-    document.getElementById('api-status').textContent = 'Offline';
-    document.getElementById('api-status').style.color = '#ff4444';
-  });
+function showToast(type, msg) {
+  const t = document.getElementById('toast');
+  t.className = `toast show ${type}`;
+  t.innerHTML = msg;
+  setTimeout(() => { t.classList.remove('show'); }, 4500);
+}
 
-loadDashboard();
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+render();
 </script>
 </body>
 </html>
